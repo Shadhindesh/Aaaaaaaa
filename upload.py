@@ -36,22 +36,6 @@ async def upload_and_get_link(chat, video_path):
         print("Uploaded to a private chat, no public link available.")
         return None
 
-def append_to_json(data, all_data):
-    all_data.append(data)
-    return all_data
-
-# Send the JSON data to the Flask API
-def send_json_to_flask_api(data):
-    json_data = {
-        'file': ('data.json', json.dumps(data), 'application/json')
-    }
-    response = requests.post(FLASK_API_URL, files=json_data)
-
-    if response.ok:
-        print("JSON data uploaded to Flask API successfully!")
-    else:
-        print("Error uploading JSON to Flask API:", response.text)
-
 def split_video(video_path, segment_length=1800):
     # Create an output directory for the split videos
     output_dir = "split_videos"
@@ -80,51 +64,34 @@ async def main():
     data = load_data()
 
     # Assign data to respective variables
-    video_path = data.get('Video Path')
-    subject = data.get('Subject')
-    chapter = data.get('Chapter')
-    class_level = data.get('Class')
+    video_path = data.get('Video Path')  # Default to aoi.mp4 if not found
     chat = 'alloneina'  # Replace with your channel/chat username
 
     # Split the video into 30-minute segments
     split_video_paths = split_video(video_path)
 
+    # Print how many videos were created
+    number_of_segments = len(split_video_paths)
+    print(f"Number of split videos created: {number_of_segments}")
+
     # Create a dictionary to hold video links
     video_links = {}
     for index, segment_path in enumerate(split_video_paths, start=1):
+        # Define the new video name
+        new_video_name = f"{os.path.splitext(os.path.basename(video_path))[0]}_part_{index}.mp4"
+        new_segment_path = os.path.join(os.path.dirname(segment_path), new_video_name)
+
+        # Rename the segment file
+        os.rename(segment_path, new_segment_path)
+
         # Upload each split video and get the public link
-        video_link = await upload_and_get_link(chat, segment_path)
+        video_link = await upload_and_get_link(chat, new_segment_path)
         if video_link:
             video_links[str(index)] = video_link  # Use string index for JSON keys
 
-    # Create the JSON data
-    json_data = {
-        'name': os.path.basename(video_path),
-        'class': class_level,
-        'chapter': chapter,
-        'subject': subject,
-        'video_links': video_links,
-        'number_of_segments': len(video_links)  # Number of segments created
-    }
-
-    # Load existing JSON data from links.json
-    existing_json = {"data": []}
-    if os.path.exists("links.json"):
-        with open("links.json", "r") as f:
-            existing_json = json.load(f)
-
-    # Append new data to existing JSON
-    updated_json = append_to_json(json_data, existing_json['data'])
-
-    # Save updated JSON to links.json
-    with open("links.json", "w") as f:
-        json.dump({"data": updated_json}, f, indent=4)
-    print("Data saved to links.json")
-
-    # Send the data to the Flask API
-    send_json_to_flask_api(updated_json)
+    # Print the video links
+    print("Uploaded video links:", video_links)
 
 # Run the main async function
 with client:
     client.loop.run_until_complete(main())
-                                               
