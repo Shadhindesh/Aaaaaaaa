@@ -20,7 +20,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        apt install ffmpeg
+        sudo apt install ffmpeg
         python -m pip install --upgrade pip
         pip install yt-dlp requests telethon tqdm
 
