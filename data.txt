@@ -1,7 +1,0 @@
-Refer URL=https://engineering24.aparsclassroom.com/Physics/Paper-1/Chapter-6/Class-66ee48ccdd3ada8fb79753ee
-Embed URL=https://iframe.mediadelivery.net/embed/173049/6cb884cb-2fb2-4870-b8ff-826761a4bb1a
-Name=physics1stchapter6class1
-Subject=Physics
-Chapter=1
-Class=1
-Video Path=physics1stchapter6class1.mp4
