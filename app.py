@@ -69,8 +69,6 @@ def brute_force(target_addresses, num_workers):
 if __name__ == "__main__":
     target_addresses = [
         '0x21a31Ee1afC51d94C2eFcCAa2092aD1028285549',
-        # Define the target address
-target_address =            '0x21a31Ee1afC51d94C2eFcCAa2092aD1028285549',
   '0x4838B106FCe9647Bdf1E7877BF73cE8B0BAD5f97',
     '0x3f5CE5FBFe3E9af3971dD833D26bA9b5C936f0bE',
     '0xAF0bC19d09EDD1509Ddd3e087162b6C0749dA764',
