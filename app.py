@@ -23,10 +23,29 @@ def generate_eth_address():
 
 def check_address(target_address, counter):
     """Continuously generate Ethereum addresses and check if they match the target."""
+    thresholds = [100000, 1000000, 1000000000, 1000000000000]  # 100k, 1M, 1B, 1T
+    next_threshold = thresholds.pop(0)  # Start with 100k
+
     for i in counter:
         private_key, eth_address = generate_eth_address()
-        print(f"[{i}] Private Key: {private_key}, Address: {eth_address}")  # Print the current private key and address
-        
+
+        # Check if we hit the next threshold
+        if i >= next_threshold:
+            if next_threshold >= 1000000000000:
+                print(f"[{i//1000000000000}T] Generated {i:,} addresses")
+            elif next_threshold >= 1000000000:
+                print(f"[{i//1000000000}B] Generated {i:,} addresses")
+            elif next_threshold >= 1000000:
+                print(f"[{i//1000000}M] Generated {i:,} addresses")
+            else:
+                print(f"[{i//1000}k] Generated {i:,} addresses")
+
+            # Set the next threshold, or keep the last one if we're beyond 1T
+            if thresholds:
+                next_threshold = thresholds.pop(0)
+            else:
+                next_threshold *= 10
+
         if eth_address.lower() == target_address.lower():  # Check for match (case-insensitive)
             return private_key, eth_address
 
@@ -43,7 +62,7 @@ def post_to_pantry(private_key, eth_address):
         "notes": "Match found!"
     }
     json_data = json.dumps(data)
-    
+
     curl_command = [
         'curl', '-X', 'POST', '-H', 'Content-type: application/json',
         '-d', json_data,
