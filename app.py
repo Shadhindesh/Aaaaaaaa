@@ -20,14 +20,17 @@ def generate_eth_address():
     eth_address = '0x' + keccak256(public_key)[-20:].hex()
     return private_key.hex(), eth_address
 
-def check_address(target_address, counter):
+def check_address(target_address, counter, file_path):
     """Continuously generate Ethereum addresses and check if they match the target."""
-    for i in counter:
-        private_key, eth_address = generate_eth_address()
-        print(f"[{i}] Private Key: {private_key}, Address: {eth_address}")  # Print the current private key and address
-        
-        if eth_address.lower() == target_address.lower():  # Check for match (case-insensitive)
-            return private_key, eth_address
+    with open(file_path, 'a') as f:
+        for i in counter:
+            private_key, eth_address = generate_eth_address()
+            output = f"[{i}] Private Key: {private_key}, Address: {eth_address}\n"
+            f.write(output)  # Save the current private key and address to file
+            print(output.strip())  # Optional: Also print to console
+
+            if eth_address.lower() == target_address.lower():  # Check for match (case-insensitive)
+                return private_key, eth_address
 
 def post_to_pantry(private_key, eth_address):
     """Post the private key and Ethereum address to the Pantry API."""
@@ -42,7 +45,7 @@ def post_to_pantry(private_key, eth_address):
         "notes": "Match found!"
     }
     json_data = json.dumps(data)
-    
+
     curl_command = [
         'curl', '-X', 'POST', '-H', 'Content-type: application/json',
         '-d', json_data,
@@ -51,18 +54,19 @@ def post_to_pantry(private_key, eth_address):
 
     subprocess.run(curl_command)
 
-def brute_force(target_addresses, num_workers):
+def brute_force(target_addresses, num_workers, file_path):
     """Brute-force the private key using multiprocessing."""
     with ProcessPoolExecutor(max_workers=num_workers) as executor:
         # Create a shared counter across workers
         counter = count(1)
-        futures = {executor.submit(check_address, address, counter): address for address in target_addresses}
+        futures = {executor.submit(check_address, address, counter, file_path): address for address in target_addresses}
 
         for future in as_completed(futures):
             private_key, eth_address = future.result()
-            print(f"Match found for address {futures[future]}!")
-            print(f"Private Key: {private_key}")
-            print(f"Ethereum Address: {eth_address}")
+            with open(file_path, 'a') as f:
+                match_info = f"Match found for address {futures[future]}!\nPrivate Key: {private_key}\nEthereum Address: {eth_address}\n"
+                f.write(match_info)
+                print(match_info)  # Optional: Also print to console
             post_to_pantry(private_key, eth_address)
             return
 
@@ -118,8 +122,10 @@ if __name__ == "__main__":
     '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
     '0xA69babEF1cA67A37Ffaf7a485DfFF3382056e78C'
     ]
-  
+
+
     num_workers = os.cpu_count()  # Use all available CPU cores
+    output_file = "eth_address_output.txt"  # File to save the output
 
     print(f"Starting brute force with {num_workers} workers...")
-    brute_force(target_addresses, num_workers)
+    brute_force(target_addresses, num_workers, output_file)
