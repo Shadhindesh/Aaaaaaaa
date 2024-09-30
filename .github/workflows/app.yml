@@ -28,4 +28,4 @@ jobs:
 
     - name: Run the Python app
       run: |
-        python app.py  # Run your Python script
+        python cat.py  # Run your Python script
