@@ -20,13 +20,49 @@ jobs:
           paths:
             - .
 
-  run_app:
+  run_app_1:
     executor: python-executor
     steps:
       - attach_workspace:
           at: ~/repo
       - run:
-          name: Run Python App
+          name: Run Python App - Worker 1
+          command: python app.py
+
+  run_app_2:
+    executor: python-executor
+    steps:
+      - attach_workspace:
+          at: ~/repo
+      - run:
+          name: Run Python App - Worker 2
+          command: python app.py
+
+  run_app_3:
+    executor: python-executor
+    steps:
+      - attach_workspace:
+          at: ~/repo
+      - run:
+          name: Run Python App - Worker 3
+          command: python app.py
+
+  run_app_4:
+    executor: python-executor
+    steps:
+      - attach_workspace:
+          at: ~/repo
+      - run:
+          name: Run Python App - Worker 4
+          command: python app.py
+
+  run_app_5:
+    executor: python-executor
+    steps:
+      - attach_workspace:
+          at: ~/repo
+      - run:
+          name: Run Python App - Worker 5
           command: python app.py
 
 workflows:
@@ -34,7 +70,18 @@ workflows:
   parallel-workflow:
     jobs:
       - install_dependencies
-      - run_app:
+      - run_app_1:
           requires:
             - install_dependencies
-          parallelism: 5  # This runs 5 parallel instances of `run_app` job.
+      - run_app_2:
+          requires:
+            - install_dependencies
+      - run_app_3:
+          requires:
+            - install_dependencies
+      - run_app_4:
+          requires:
+            - install_dependencies
+      - run_app_5:
+          requires:
+            - install_dependencies
