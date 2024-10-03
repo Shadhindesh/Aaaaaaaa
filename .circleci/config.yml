@@ -33,8 +33,8 @@ workflows:
   version: 2
   parallel-workflow:
     jobs:
-      - install_dependencies:
-          parallelism: 5
+      - install_dependencies
       - run_app:
           requires:
             - install_dependencies
+          parallelism: 5
