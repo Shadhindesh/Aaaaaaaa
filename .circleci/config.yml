@@ -37,4 +37,4 @@ workflows:
       - run_app:
           requires:
             - install_dependencies
-          parallelism: 5
+          parallelism: 5  # This runs 5 parallel instances of `run_app` job.
