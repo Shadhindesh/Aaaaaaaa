@@ -14,55 +14,19 @@ jobs:
       - run:
           name: Install dependencies
           command: |
-            pip install ecdsa pycryptodome
+            pip install pycryptodome ecdsa
       - persist_to_workspace:
           root: ~/repo
           paths:
             - .
 
-  run_app_1:
+  run_app:
     executor: python-executor
     steps:
       - attach_workspace:
           at: ~/repo
       - run:
-          name: Run Python App - Worker 1
-          command: python app.py
-
-  run_app_2:
-    executor: python-executor
-    steps:
-      - attach_workspace:
-          at: ~/repo
-      - run:
-          name: Run Python App - Worker 2
-          command: python app.py
-
-  run_app_3:
-    executor: python-executor
-    steps:
-      - attach_workspace:
-          at: ~/repo
-      - run:
-          name: Run Python App - Worker 3
-          command: python app.py
-
-  run_app_4:
-    executor: python-executor
-    steps:
-      - attach_workspace:
-          at: ~/repo
-      - run:
-          name: Run Python App - Worker 4
-          command: python app.py
-
-  run_app_5:
-    executor: python-executor
-    steps:
-      - attach_workspace:
-          at: ~/repo
-      - run:
-          name: Run Python App - Worker 5
+          name: Run Python App
           command: python app.py
 
 workflows:
@@ -70,18 +34,6 @@ workflows:
   parallel-workflow:
     jobs:
       - install_dependencies
-      - run_app_1:
-          requires:
-            - install_dependencies
-      - run_app_2:
-          requires:
-            - install_dependencies
-      - run_app_3:
-          requires:
-            - install_dependencies
-      - run_app_4:
-          requires:
-            - install_dependencies
-      - run_app_5:
+      - run_app:
           requires:
             - install_dependencies
