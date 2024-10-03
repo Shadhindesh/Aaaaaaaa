@@ -1,42 +1,34 @@
-name: Setup SSH with Ngrok
-
+name: Run Python App
 
 on:
   push:
     branches:
-      - main
-  workflow_dispatch:  # Allows manual triggers
+      - main  # Triggers on push to main branch
+  pull_request:
+    branches:
+      - main  # Triggers on pull requests to main branch
 
 jobs:
-  setup-ssh:
-    runs-on: ubuntu-latest
+  run-python-app:
+    runs-on: ubuntu-latest  # Run on the latest Ubuntu environment
+
+    strategy:
+      matrix:
+        worker: [1]  # Define 5 workers in the matrix
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+    - name: Checkout code
+      uses: actions/checkout@v3  # Check out the repository
 
-      - name: Setup SSH
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y openssh-server
-          echo "root:1234" | sudo chpasswd  # Set the root password
-          sudo sed -i 's/^#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
-          sudo service ssh restart
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v4  # Set up Python environment
+      with:
+        python-version: 3.9  # Specify the Python version
 
-      - name: Install Ngrok
-        run: |
-          wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
-          tar -xvzf ngrok-v3-stable-linux-amd64.tgz
-          sudo mv ngrok /usr/local/bin
-          ngrok authtoken 2ULlZeaFoXx7Kqk7kcYMlsel5JO_3mMWSwcCzs7uL4jtRaQ44
+    - name: Install dependencies
+      run: |
+        pip install requests ecdsa pycryptodome base58
 
-      - name: Start Ngrok
-        run: ngrok tcp 22
-
-      - name: Get Ngrok URL
-        run: |
-          sleep 5  # Wait for ngrok to initialize
-          curl -s http://localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url' > ngrok_url.txt
-
-      - name: Output Ngrok URL
-        run: cat ngrok_url.txt
+    - name: Run the Python app
+      run: |
+        python app.py  # Run your Python script
