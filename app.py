@@ -1,72 +1,94 @@
-import hashlib
-from Crypto.Hash import RIPEMD160
-from ecdsa import SigningKey, SECP256k1
-import base58
-import sys
+import requests
+from bs4 import BeautifulSoup
 import time
 
-def sha256(data):
-    return hashlib.sha256(data).digest()
+# Function to fetch keys and addresses
+def fetch_keys():
+    # Replace with your actual cURL URL
+    url = 'https://privatekeys.pw/keys/bitcoin/random/puzzle/67'
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+        'Referer': 'https://privatekeys.pw/keys/bitcoin-gold/random/puzzle/67'
+    }
 
-def ripemd160(data):
-    h = RIPEMD160.new()
-    h.update(data)
-    return h.digest()
+    response = requests.get(url, headers=headers)
+    soup = BeautifulSoup(response.content, 'html.parser')
 
-def hash160(data):
-    return ripemd160(sha256(data))
+    # Find the table and extract keys and addresses
+    table = soup.find('table', class_='table')
+    rows = table.find_all('tr')[1:]  # Skip the header row
 
-def public_key_to_address(public_key):
-    h160 = hash160(public_key)
-    vh160 = b'\x00' + h160  # Version 0x00 for P2PKH
-    checksum = sha256(sha256(vh160))[:4]
-    return base58.b58encode(vh160 + checksum)
+    return rows
 
-def private_key_to_wif(private_key):
-    extended_key = b'\x80' + private_key  # '\x80' for mainnet WIF format
-    checksum = sha256(sha256(extended_key))[:4]
-    return base58.b58encode(extended_key + checksum)
+# Function to check for matches and save them
+def check_for_matches(rows, target_address):
+    found = False  # Variable to track if the address is found
+    matches = []  # List to store matches
 
-def int_to_bytes(x: int) -> bytes:
-    return x.to_bytes(32, byteorder='big')  # 32-byte private keys for Bitcoin
+    for row in rows:
+        cols = row.find_all('td')
+        if len(cols) >= 2:
+            private_key = cols[0].text.strip()
+            addresses = [a.text.strip() for a in cols[1].find_all('span', class_='hover')]
+            
+            print(f'Private Key: {private_key}')
+            print(f'Addresses: {addresses}')
+            
+            # Check if the target address matches any of the extracted addresses
+            if target_address in addresses:
+                found = True
+                matches.append(f'Match found: {target_address} with Private Key: {private_key}')
+                print(matches[-1])  # Print the last match found
 
-def solve_puzzle(target_address, start_range, end_range):
-    print(f"Trying private key range: {hex(start_range)} to {hex(end_range)}")
+    return found, matches
+
+# Function to save matches to a text file
+def save_matches_to_file(matches):
+    with open('matches.txt', 'w') as f:
+        for match in matches:
+            f.write(match + '\n')
+
+# Function to upload to Gofile
+def upload_to_gofile(file_path, api_token, folder_id):
+    upload_url = 'https://store1.gofile.io/uploadFile'
+    with open(file_path, 'rb') as file:
+        files = {'file': file}
+        headers = {"Authorization": f"Bearer {api_token}"}
+        data = {"folderId": folder_id}
+
+        response = requests.post(upload_url, headers=headers, files=files, data=data)
+        if response.status_code == 200:
+            result = response.json()
+            if result['status'] == 'ok':
+                print(f"File successfully uploaded: {result['data']['downloadPage']}")
+            else:
+                print(f"Error during upload: {result['status']}")
+        else:
+            print(f"Failed to upload file, status code: {response.status_code}")
+
+# Infinite loop
+while True:
+    # Target address to check against
+    target_address = '1BY8GQbnueYofwSuFAT3USAhGjPrkxDdW9'
     
-    target_address_bytes = base58.b58decode(target_address)[:-4]  # Decode target address and remove checksum
-    
-    for private_key in range(start_range, end_range + 1):
-        private_key_bytes = int_to_bytes(private_key)
-        
-        # Generate public key
-        sk = SigningKey.from_string(private_key_bytes, curve=SECP256k1)
-        public_key = sk.get_verifying_key().to_string("compressed")  # Compressed public key
-        
-        # Generate address
-        address = public_key_to_address(public_key)
-        
-        # Print each attempt on the same line
-        output = f"Trying private key: {private_key_bytes.hex()} | Address: {address.decode()}"
-        sys.stdout.write('\r' + output)  # Overwrite the current line
-        sys.stdout.flush()
-        
-        if address == target_address.encode():  # Compare the full base58-encoded address
-            print()  # Print a new line before showing the result
-            return private_key_bytes, private_key_to_wif(private_key_bytes)
-    
-    print()  # Ensure a new line at the end of the loop
-    return None, None
+    # Fetch keys and addresses
+    rows = fetch_keys()
 
-# Target address and range
-target_address = "1BY8GQbnueYofwSuFAT3USAhGjPrkxDdW9"
-start_range = 0x40000000000000000
-end_range = 0x50000000000000000
+    # Check for matches
+    found, matches = check_for_matches(rows, target_address)
 
-print("Starting puzzle solver...")
-private_key, wif = solve_puzzle(target_address, start_range, end_range)
+    if not found:
+        print(f'No matches found for the address: {target_address}')
+    else:
+        # Save matches to a text file
+        save_matches_to_file(matches)
 
-if private_key:
-    print(f"\nFound matching private key: {private_key.hex()}")
-    print(f"WIF format: {wif.decode()}")
-else:
-    print("No matching private key found in the given range.")
+        # API token and folder ID for Gofile
+        api_token = 'ttoDCTma1RmNbzvAH6GG0QJ8tmDNexNi'
+        folder_id = 'e0d60535-b34f-4ede-a90d-d3819f30b6ee'
+        
+        # Upload the matches.txt file
+        upload_to_gofile('matches.txt', api_token, folder_id)
+
+     # Adjust this as needed
