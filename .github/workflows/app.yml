@@ -11,10 +11,10 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    # Step 1: Update and Upgrade the System
-    - name: Update and Upgrade
+    # Step 1: Update
+    - name: Update
       run: |
-        sudo apt update && sudo apt upgrade -y
+        sudo apt update
     
     # Step 2: Install Required Dependencies
     - name: Install Dependencies
@@ -42,4 +42,4 @@ jobs:
     - name: Run Keyhunt
       run: |
         cd keyhunt
-        ./keyhunt -m rmd160 -f tests/67.rmd -b 67 -l compress -R -t 4 -r 40000000000000000:41000000000000000 -s 10
+        ./keyhunt -f tests/67.rmd  -m bsgs -t 4 -k 256 -s 0 -S -r 40000000000000000:41000000000000000
