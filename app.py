@@ -1,102 +1,115 @@
 import requests
+import re
+import os
 from bs4 import BeautifulSoup
-import time
 
-# Function to fetch keys and addresses
-def fetch_keys():
-    url = 'https://privatekeys.pw/keys/bitcoin/random/puzzle/67'
+# Step 1: Define the checkpoint system
+CHECKPOINT_FILE = 'checkpoint.txt'
+MAX_PAGE = 73786976294838207  # Set a reasonable maximum page limit
+TARGET_ADDRESS = '1BY8GQbnueYofwSuFAT3USAhGjPrkxDdW9'  # Target address for matching
+
+# Function to load checkpoint (last processed page number)
+def load_checkpoint():
+    if os.path.exists(CHECKPOINT_FILE):
+        with open(CHECKPOINT_FILE, 'r') as f:
+            try:
+                page = int(f.read().strip())
+                if page < 1 or page > MAX_PAGE:  # Ensure the page is within valid range
+                    return 1  # Default to 1 if invalid
+                return page
+            except ValueError:
+                return 1  # Default to 1 if there's a problem converting to int
+    return 1  # Default starting point
+
+# Function to save checkpoint (save current page number)
+def save_checkpoint(page):
+    with open(CHECKPOINT_FILE, 'w') as f:
+        f.write(str(page))
+
+# Step 2: Make the request to the target page
+def fetch_page(page_number):
+    url = f'https://hashkeys.space/67/?page={page_number}'  # Use the correct page number
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.82 Safari/537.36',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Connection': 'keep-alive',
-        'DNT': '1',
+        'authority': 'hashkeys.space',
+        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+        'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8',
+        'cache-control': 'max-age=0',
+        'cookie': '_ga=GA1.1.355250481.1728059291; _ga_K7CFDCYECE=GS1.1.1728059290.1.1.1728059310.0.0.0',
+        'sec-ch-ua': '"Not-A.Brand";v="99", "Chromium";v="124"',
+        'sec-ch-ua-mobile': '?1',
+        'sec-ch-ua-platform': '"Android"',
+        'sec-fetch-dest': 'document',
+        'sec-fetch-mode': 'navigate',
+        'sec-fetch-site': 'none',
+        'sec-fetch-user': '?1',
+        'upgrade-insecure-requests': '1',
+        'user-agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
     }
-
-    try:
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()  # Raise an error for bad responses
-        soup = BeautifulSoup(response.content, 'html.parser')
-
-        # Attempt to find the table
-        table = soup.find('table', class_='table')
-        if table is None:
-            print("No table found on the page. Possible ads or content loading issue.")
-            return []  # Return an empty list if the table is not found
-
-        rows = table.find_all('tr')[1:]  # Skip the header row
-        return rows
-    except requests.RequestException as e:
-        print(f"An error occurred while fetching keys: {e}")
-        return []
-
-# Function to check for matches and save them
-def check_for_matches(rows, target_address):
-    found = False  # Variable to track if the address is found
-    matches = []  # List to store matches
-
-    for row in rows:
-        cols = row.find_all('td')
-        if len(cols) >= 2:
-            private_key = cols[0].text.strip()
-            addresses = [a.text.strip() for a in cols[1].find_all('span', class_='hover')]
-            
-            print(f'Private Key: {private_key}')
-            print(f'Addresses: {addresses}')
-            
-            # Check if the target address matches any of the extracted addresses
-            if target_address in addresses:
-                found = True
-                matches.append(f'Match found: {target_address} with Private Key: {private_key}')
-                print(matches[-1])  # Print the last match found
-
-    return found, matches
-
-# Function to save matches to a text file
-def save_matches_to_file(matches):
-    with open('matches.txt', 'w') as f:
-        for match in matches:
-            f.write(match + '\n')
-
-# Function to upload to Gofile
-def upload_to_gofile(file_path, api_token, folder_id):
-    upload_url = 'https://store1.gofile.io/uploadFile'
-    with open(file_path, 'rb') as file:
-        files = {'file': file}
-        headers = {"Authorization": f"Bearer {api_token}"}
-        data = {"folderId": folder_id}
-
-        response = requests.post(upload_url, headers=headers, files=files, data=data)
-        if response.status_code == 200:
-            result = response.json()
-            if result['status'] == 'ok':
-                print(f"File successfully uploaded: {result['data']['downloadPage']}")
-            else:
-                print(f"Error during upload: {result['status']}")
-        else:
-            print(f"Failed to upload file, status code: {response.status_code}")
-
-# Infinite loop
-while True:
-    # Target address to check against
-    target_address = '1BY8GQbnueYofwSuFAT3USAhGjPrkxDdW9'
     
-    # Fetch keys and addresses
-    rows = fetch_keys()
-
-    # Check for matches
-    found, matches = check_for_matches(rows, target_address)
-
-    if not found:
-        print(f'No matches found for the address: {target_address}')
+    print(f"Trying to fetch: {url}")  # Debug statement to check the URL being accessed
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        return response.text
+    elif response.status_code == 404:
+        print(f"Page {page_number} not found. Stopping the script.")
+        return None  # Return None if the page does not exist
     else:
-        # Save matches to a text file
-        save_matches_to_file(matches)
+        raise Exception(f"Failed to fetch page {page_number}: Status code {response.status_code}")
 
-        # API token and folder ID for Gofile
-        api_token = 'ttoDCTma1RmNbzvAH6GG0QJ8tmDNexNi'
-        folder_id = 'e0d60535-b34f-4ede-a90d-d3819f30b6ee'
+# Step 3: Extract and process the target addresses using BeautifulSoup
+def process_page(page_content, page_number):
+    addresses = []
+    soup = BeautifulSoup(page_content, 'html.parser')
+
+    # Find all divs containing the hex value and address
+    for div in soup.find_all('div'):
+        text = div.get_text(strip=True)
+        # Regex to match Bitcoin addresses within the text
+        matches = re.findall(r'(\b1[A-HJ-NP-Za-km-z1-9]{25,34}\b)', text)
         
-        # Upload the matches.txt file
-        upload_to_gofile('matches.txt', api_token, folder_id)
+        # Extract key hex values from the div text
+        hex_matches = re.findall(r'([0-9a-fA-F]+)\s+([13][a-zA-Z0-9]{25,34})', text)
 
-     # Adjust this as needed
+        for hex_value, address in hex_matches:
+            addresses.append((hex_value.strip(), address.strip()))
+            # Print the extracted hex and address
+            
+            # Check if the extracted address matches the target address
+            if address.strip() == TARGET_ADDRESS:
+                save_data_to_txt(hex_value.strip(), address.strip(), page_number)
+                print(f"Match found! Saved - Key Hex: {hex_value.strip()}, Address: {address.strip()}, Page: {page_number}")
+                return True  # Return True indicating a match was found
+
+    return bool(addresses)
+
+# Step 4: Save the extracted data to a .txt file
+def save_data_to_txt(key_hex, address, page_number):
+    with open('target_data.txt', 'a') as f:
+        f.write(f"Key Hex: {key_hex}, Address: {address}, Page: {page_number}\n")
+
+# Main process loop
+def main():
+    page = load_checkpoint()
+    
+    while True:
+        print(f"Fetching page {page}...")
+        page_content = fetch_page(page)
+        
+        if page_content is None:
+            print(f"No more valid pages to fetch. Exiting.")
+            break
+        
+        if process_page(page_content, page):
+            save_checkpoint(page)
+            print(f"Processed and saved data for page {page}")
+            break  # Exit the loop when a match is found
+        else:
+            save_checkpoint(page)
+            print(f"No target address found on page {page}. Moving to the next page.")
+            page += 1  # Move to the next page
+            if page > MAX_PAGE:  # Stop if the page exceeds maximum limit
+                print("Reached maximum page limit. Exiting.")
+                break
+
+if __name__ == "__main__":
+    main()
