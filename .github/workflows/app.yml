@@ -1,34 +1,45 @@
-name: Run Python App
+name: Keyhunt Build and Run
 
 on:
   push:
     branches:
-      - main  # Triggers on push to main branch
-  pull_request:
-    branches:
-      - main  # Triggers on pull requests to main branch
+      - main
+  workflow_dispatch:  # This allows you to manually trigger the workflow from the GitHub UI
 
 jobs:
-  run-python-app:
-    runs-on: ubuntu-latest  # Run on the latest Ubuntu environment
-
-    strategy:
-      matrix:
-        worker: [1]  # Define 5 workers in the matrix
-
+  build:
+    runs-on: ubuntu-latest
+    
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3  # Check out the repository
-
-    - name: Set up Python 3.9
-      uses: actions/setup-python@v4  # Set up Python environment
-      with:
-        python-version: 3.9  # Specify the Python version
-
-    - name: Install dependencies
+    # Step 1: Update and Upgrade the System
+    - name: Update and Upgrade
       run: |
-        pip install requests ecdsa pycryptodome base58
-
-    - name: Run the Python app
+        sudo apt update && sudo apt upgrade -y
+    
+    # Step 2: Install Required Dependencies
+    - name: Install Dependencies
       run: |
-        python app.py  # Run your Python script
+        sudo apt install git build-essential libssl-dev libgmp-dev -y
+
+    # Step 3: Clone the Keyhunt Repository
+    - name: Clone Keyhunt Repo
+      run: |
+        git clone https://github.com/albertobsd/keyhunt.git
+        cd keyhunt
+    
+    # Step 4: Compile Keyhunt
+    - name: Build Keyhunt
+      run: |
+        cd keyhunt
+        make
+
+    # Step 5: Create the Test File
+    - name: Create Test File
+      run: |
+        echo "1BY8GQbnueYofwSuFAT3USAhGjPrkxDdW9" > keyhunt/tests/67.rmd
+
+    # Step 6: Run Keyhunt with Specified Parameters
+    - name: Run Keyhunt
+      run: |
+        cd keyhunt
+        ./keyhunt -m rmd160 -f tests/67.rmd -b 67 -l compress -R -t 4 -r 40000000000000000:41000000000000000 -s 10
