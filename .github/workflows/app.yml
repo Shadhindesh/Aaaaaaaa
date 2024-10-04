@@ -33,12 +33,11 @@ jobs:
         cd keyhunt
         make
 
-    # Step 5: Create the Test File
+    
     - name: Create Test File
       run: |
-        ls
         cd keyhunt
-        echo "1BY8GQbnueYofwSuFAT3USAhGjPrkxDdW9" > keyhunt/tests/67.rmd
+        echo "1BY8GQbnueYofwSuFAT3USAhGjPrkxDdW9" > tests/67.rmd
 
     # Step 6: Run Keyhunt with Specified Parameters
     - name: Run Keyhunt
