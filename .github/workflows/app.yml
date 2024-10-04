@@ -14,7 +14,7 @@ jobs:
 
     strategy:
       matrix:
-        worker: [1,2,3,4,5]  # Define 5 workers in the matrix
+        worker: [1]  # Define 5 workers in the matrix
 
     steps:
     - name: Checkout code
