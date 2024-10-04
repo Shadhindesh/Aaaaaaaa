@@ -4,22 +4,30 @@ import time
 
 # Function to fetch keys and addresses
 def fetch_keys():
-    # Replace with your actual cURL URL
     url = 'https://privatekeys.pw/keys/bitcoin/random/puzzle/67'
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-        'Referer': 'https://privatekeys.pw/keys/bitcoin-gold/random/puzzle/67'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.82 Safari/537.36',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Connection': 'keep-alive',
+        'DNT': '1',
     }
 
-    response = requests.get(url, headers=headers)
-    soup = BeautifulSoup(response.content, 'html.parser')
+    try:
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()  # Raise an error for bad responses
+        soup = BeautifulSoup(response.content, 'html.parser')
 
-    # Find the table and extract keys and addresses
-    table = soup.find('table', class_='table')
-    rows = table.find_all('tr')[1:]  # Skip the header row
+        # Attempt to find the table
+        table = soup.find('table', class_='table')
+        if table is None:
+            print("No table found on the page. Possible ads or content loading issue.")
+            return []  # Return an empty list if the table is not found
 
-    return rows
+        rows = table.find_all('tr')[1:]  # Skip the header row
+        return rows
+    except requests.RequestException as e:
+        print(f"An error occurred while fetching keys: {e}")
+        return []
 
 # Function to check for matches and save them
 def check_for_matches(rows, target_address):
