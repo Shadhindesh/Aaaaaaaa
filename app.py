@@ -7,7 +7,8 @@ import time
 # Step 1: Define the checkpoint system
 CHECKPOINT_FILE = 'checkpoint.txt'
 MAX_PAGE = 73786976294838207  # Set a reasonable maximum page limit
-TARGET_ADDRESS = '1GTvPPxDNhUKwASumu6KJSsdrsjh6FguX'  # Target address for matching
+TARGET_ADDRESS = '1BY8GQbnueYofwSuFAT3USAhGjPrkxDdW9'  # Target address for matching
+START_PAGE = 12540  # Set the starting page number to 12540
 
 # Function to load checkpoint (last processed page number)
 def load_checkpoint():
@@ -15,12 +16,12 @@ def load_checkpoint():
         with open(CHECKPOINT_FILE, 'r') as f:
             try:
                 page = int(f.read().strip())
-                if page < 1 or page > MAX_PAGE:  # Ensure the page is within valid range
-                    return 1  # Default to 1 if invalid
+                if page < 1 or page > MAX_PAGE:  # Ensure the page is within a valid range
+                    return START_PAGE  # Default to 12540 if invalid
                 return page
             except ValueError:
-                return 1  # Default to 1 if there's a problem converting to int
-    return 1  # Default starting point
+                return START_PAGE  # Default to 12540 if there's a problem converting to int
+    return START_PAGE  # Default starting point
 
 # Function to save checkpoint (save current page number)
 def save_checkpoint(page):
@@ -47,7 +48,6 @@ def fetch_page(page_number):
         'user-agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
     }
     
-    # Debug statement to check the URL being accessed
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
         return response.text
@@ -73,7 +73,6 @@ def process_page(page_content, page_number):
 
         for hex_value, address in hex_matches:
             addresses.append((hex_value.strip(), address.strip()))
-            # Print the extracted hex and address
             
             # Check if the extracted address matches the target address
             if address.strip() == TARGET_ADDRESS:
@@ -103,16 +102,15 @@ def main():
         
         if process_page(page_content, page):
             save_checkpoint(page)
-            page += 12540  # Move to the next page
-        else:
-            save_checkpoint(page)
-            print(f"No target address found on page {page}. Moving to the next page.")
-            page += 12540  # Move to the next page
         
+        save_checkpoint(page)  # Save after processing the current page
+        print(f"No target address found on page {page}. Moving to the next page.")
+        page += 1  # Move to the next page
+
         if page > MAX_PAGE:  # Stop if the page exceeds maximum limit
             print("Reached maximum page limit. Waiting for 10 minutes before restarting.")
             time.sleep(600)  # Wait for 10 minutes before restarting
-            page = 12540  # Reset the page number
+            page = START_PAGE  # Reset the page number if it exceeds the limit
 
 if __name__ == "__main__":
     main()
