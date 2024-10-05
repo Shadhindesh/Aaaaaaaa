@@ -2,12 +2,12 @@ import requests
 import re
 import os
 from bs4 import BeautifulSoup
+import time
 
 # Step 1: Define the checkpoint system
 CHECKPOINT_FILE = 'checkpoint.txt'
 MAX_PAGE = 73786976294838207  # Set a reasonable maximum page limit
-TARGET_ADDRESS = '1BY8GQbnueYofwSuFAT3USAhGjPrkxDdW9'  # Target address for matching
-
+TARGET_ADDRESS = '1GTvPPxDNhUKwASumu6KJSsdrsjh6FguX'  # Target address for matching
 
 # Function to load checkpoint (last processed page number)
 def load_checkpoint():
@@ -46,8 +46,7 @@ def fetch_page(page_number):
         'upgrade-insecure-requests': '1',
         'user-agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
     }
-    
-    print(f"Trying to fetch: {url}")  # Debug statement to check the URL being accessed
+      # Debug statement to check the URL being accessed
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
         return response.text
@@ -97,20 +96,22 @@ def main():
         page_content = fetch_page(page)
         
         if page_content is None:
-            print(f"No more valid pages to fetch. Exiting.")
-            break
+            print(f"No more valid pages to fetch. Waiting for 10 minutes before retrying.")
+            time.sleep(600)  # Wait for 10 minutes before retrying
+            continue
         
         if process_page(page_content, page):
             save_checkpoint(page)
-            print(f"Processed and saved data for page {page}")
-            break  # Exit the loop when a match is found
+            page += 12540  # Move to the next page
         else:
             save_checkpoint(page)
             print(f"No target address found on page {page}. Moving to the next page.")
-            page += 1  # Move to the next page
-            if page > MAX_PAGE:  # Stop if the page exceeds maximum limit
-                print("Reached maximum page limit. Exiting.")
-                break
+            page += 12540  # Move to the next page
+        
+        if page > MAX_PAGE:  # Stop if the page exceeds maximum limit
+            print("Reached maximum page limit. Waiting for 10 minutes before restarting.")
+            time.sleep(60)  # Wait for 10 minutes before restarting
+            page = 12540  # Reset the page number
 
 if __name__ == "__main__":
     main()
