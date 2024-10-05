@@ -14,24 +14,24 @@ TARGET_ADDRESS = '1BY8GQbnueYofwSuFAT3USAhGjPrkxDdW9'  # Target address for matc
 def load_start_page():
     if os.path.exists(STARTER_FILE):
         with open(STARTER_FILE, 'r') as f:
+            lines = f.readlines()
             try:
-                return int(f.readline().strip())  # Read the first line as the start page
-            except ValueError:
-                return 12540  # Default to 12540 if there's an issue
-    return 12540  # Default starting point if file doesn't exist
+                return int(lines[0].strip()) if len(lines) > 1 else None  # Convert to int
+            except (IndexError, ValueError):
+                return None  # Return None if there's an issue
+    return None
 
-# Function to load checkpoint (last processed page number)
 def load_checkpoint():
     start_page = load_start_page()  # Load start page from starter.txt
     if os.path.exists(CHECKPOINT_FILE):
         with open(CHECKPOINT_FILE, 'r') as f:
             try:
-                page = int(f.read().strip())
+                page = int(f.read().strip())  # Convert to int
                 if 1 <= page <= MAX_PAGE:  # Ensure the page is within a valid range
                     return page
             except ValueError:
                 pass  # In case of error, return start_page
-    return start_page  # Return the starting page if no checkpoint or invalid data
+    return start_page  # Return the starting 
 
 # Function to save checkpoint (save current page number)
 def save_checkpoint(page):
@@ -94,7 +94,7 @@ def process_page(page_content, page_number):
                 print(f"Match found! Saved - Key Hex: {hex_value.strip()}, Address: {address.strip()}, Page: {page_number}")
                 return True  # Return True indicating a match was found
 
-    return bool(addresses)
+    return False  # No match found
 
 # Step 4: Save the extracted data to a .txt file
 def save_data_to_txt(key_hex, address, page_number):
@@ -117,7 +117,7 @@ def main():
         if process_page(page_content, page):
             print(f"Target address found on page {page}. Saving and stopping.")
             save_checkpoint(page)
-            break  # Stop if match is found
+            break  # Stop if the target address is found
         
         save_checkpoint(page)  # Save after processing the current page
         print(f"No target address found on page {page}. Moving to the next page.")
