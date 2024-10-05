@@ -46,7 +46,8 @@ def fetch_page(page_number):
         'upgrade-insecure-requests': '1',
         'user-agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
     }
-      # Debug statement to check the URL being accessed
+    
+    # Debug statement to check the URL being accessed
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
         return response.text
@@ -110,7 +111,7 @@ def main():
         
         if page > MAX_PAGE:  # Stop if the page exceeds maximum limit
             print("Reached maximum page limit. Waiting for 10 minutes before restarting.")
-            time.sleep(60)  # Wait for 10 minutes before restarting
+            time.sleep(600)  # Wait for 10 minutes before restarting
             page = 12540  # Reset the page number
 
 if __name__ == "__main__":
