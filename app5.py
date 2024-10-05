@@ -23,7 +23,7 @@ def load_second_line():
     return None
     
 def load_checkpoint():
-    start_page = load_start_page()  # Load start page from starter.txt
+    start_page = load_second_line()  # Load start page from starter.txt
     if os.path.exists(CHECKPOINT_FILE):
         with open(CHECKPOINT_FILE, 'r') as f:
             try:
