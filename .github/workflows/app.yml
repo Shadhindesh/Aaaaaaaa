@@ -1,4 +1,4 @@
-name: Run Python App
+name: Run Python Apps
 
 on:
   push:
@@ -9,26 +9,26 @@ on:
       - main  # Triggers on pull requests to main branch
 
 jobs:
-  run-python-app:
+  run-python-apps:
     runs-on: ubuntu-latest  # Run on the latest Ubuntu environment
 
     strategy:
       matrix:
-        worker: [1]  # Define 5 workers in the matrix
+        app: [app1.py, app2.py, app3.py, app4.py, app5.py]  # Define the matrix of Python scripts
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3  # Check out the repository
+      - name: Checkout code
+        uses: actions/checkout@v3  # Check out the repository
 
-    - name: Set up Python 3.9
-      uses: actions/setup-python@v4  # Set up Python environment
-      with:
-        python-version: 3.9  # Specify the Python version
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v4  # Set up Python environment
+        with:
+          python-version: 3.9  # Specify the Python version
 
-    - name: Install dependencies
-      run: |
-        pip install requests bs4  
+      - name: Install dependencies
+        run: |
+          pip install requests bs4  # Install required Python dependencies
 
-    - name: Run the Python app
-      run: |
-        python app.py  # Run your Python script
+      - name: Run the Python app
+        run: |
+          python ${{ matrix.app }}  # Run the specific Python script based on the matrix
