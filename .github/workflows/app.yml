@@ -1,6 +1,5 @@
 name: Setup SSH with Ngrok
 
-
 on:
   push:
     branches:
