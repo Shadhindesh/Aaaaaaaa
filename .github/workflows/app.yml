@@ -1,6 +1,5 @@
 name: Run Super Vanitygen with Multiple Workers
 
-
 on:
   workflow_dispatch:  # Allows manual trigger
 
