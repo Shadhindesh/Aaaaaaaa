@@ -1,41 +1,35 @@
-name: Setup SSH with Ngrok
+name: Run Super Vanitygen with Multiple Workers
+
 
 on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:  # Allows manual triggers
+  workflow_dispatch:  # Allows manual trigger
 
 jobs:
-  setup-ssh:
+  generate-address:
     runs-on: ubuntu-latest
-
+    strategy:
+      matrix:
+        worker: [1, 2, 3, 4, 5]  # Defines 5 parallel workers
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Setup SSH
+      - name: Clone Super Vanitygen Repository
+        run: |
+          git clone https://github.com/klynastor/supervanitygen.git
+          cd supervanitygen
+
+      - name: Set up dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y openssh-server
-          echo "root:1234" | sudo chpasswd  # Set the root password
-          sudo sed -i 's/^#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
-          sudo service ssh restart
+          sudo apt-get install -y gcc make autoconf libtool libgmp3-dev
 
-      - name: Install Ngrok
+      - name: Build Super Vanitygen
         run: |
-          wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
-          tar -xvzf ngrok-v3-stable-linux-amd64.tgz
-          sudo mv ngrok /usr/local/bin
-          ngrok authtoken 2ULlZeaFoXx7Kqk7kcYMlsel5JO_3mMWSwcCzs7uL4jtRaQ44
+          cd supervanitygen
+          make  # Assuming there's a Makefile in the repo
 
-      - name: Start Ngrok
-        run: ngrok tcp 22
-
-      - name: Get Ngrok URL
+      - name: Run Super Vanitygen
         run: |
-          sleep 5  # Wait for ngrok to initialize
-          curl -s http://localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url' > ngrok_url.txt
-
-      - name: Output Ngrok URL
-        run: cat ngrok_url.txt
+          cd supervanitygen
+          ./vanitygen "1Turjaun${{ matrix.worker }}"  # Adjust prefix for each worker
