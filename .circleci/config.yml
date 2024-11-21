@@ -1,0 +1,39 @@
+version: 2.1
+
+executors:
+  python-executor:
+    docker:
+      - image: circleci/python:3.8
+    working_directory: ~/repo
+
+jobs:
+  install_dependencies:
+    executor: python-executor
+    steps:
+      - checkout
+      - run:
+          name: Install dependencies
+          command: |
+            pip install pycryptodome ecdsa
+      - persist_to_workspace:
+          root: ~/repo
+          paths:
+            - .
+
+  run_app:
+    executor: python-executor
+    steps:
+      - attach_workspace:
+          at: ~/repo
+      - run:
+          name: Run Python App
+          command: python app.py
+
+workflows:
+  version: 2
+  parallel-workflow:
+    jobs:
+      - install_dependencies
+      - run_app:
+          requires:
+            - install_dependencies
